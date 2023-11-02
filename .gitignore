@@ -6,5 +6,6 @@ frontend/raw/
 frontend/dist/
 frontend/public/*.js
 frontend/public/*.js
+frontend/public/merged/
 js_scripts/node_modules/
-frontend/runtime/
+runtime/*

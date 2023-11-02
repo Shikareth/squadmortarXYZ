@@ -1,6 +1,7 @@
 npm i create-nodew-exe -g
 npm i express
 npm i jimp
+npm i pkg
 
 pkg squadMortarServer.js -t=win
 

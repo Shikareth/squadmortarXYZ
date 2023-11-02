@@ -45,7 +45,7 @@ Func ExitScript()
 	Exit
 EndFunc   ;==>ExitScript
 
-Run("nojs_scriptsdeJs/squadMortarServerSilent.exe")
+Run("js_scripts/squadMortarServerSilent.exe")
 AdlibRegister("syncMap", 500)
 runSquadMortar()
 
