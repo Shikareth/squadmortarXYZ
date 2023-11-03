@@ -8,4 +8,6 @@ frontend/public/*.js
 frontend/public/*.js
 frontend/public/merged/
 js_scripts/node_modules/
-runtime/*
+runtime/
+BackUp/
+squadmortar.exe

@@ -1,8 +1,13 @@
+#AutoIt3Wrapper_Icon=resources\icon.ico
+
 #include <ScreenCapture.au3>
 #include <GDIPlus.au3>
 #include "autoit_libraries/UWPOCR.au3"
+#include "autoit_libraries/common.au3"
+#include "autoit_libraries/GUI.au3"
 #include <SendMessage.au3>
 #include <WindowsConstants.au3>
+#include <ScrollBarConstants.au3>
 
 
 ; Enables GUI events
@@ -18,33 +23,23 @@ Opt("MouseCoordMode", 0)
 Global $aCoordinatesRange[0]
 Global $aCoordinatesAngle[0]
 Global $hWnd = WinGetHandle("Squad")
-Global $aCoordinates[2][7][4]
+Global $aCoordinates[3][5][4]
 
 Const $i1024x768 = 0
 Const $i1920x1080 = 1
+Const $i2560x1440 = 2
 Const $iMortarAngleOcr = 0
 Const $iMortarRangeOcr = 1
 Const $iMortarRangeLine = 2
-Const $iIsMortarActive = 3
-Const $iIsMapActive = 4
-Const $iMapZoomedOut = 5
-Const $iMapCoordinates = 6
+Const $iIsMapActive = 3
+Const $iMapCoordinates = 4
 
 setCoordinates()
 Local $aWinPos = WinGetPos("Squad")
 Global $iResolution = Eval("i" & $aWinPos[2] & "x" & $aWinPos[3])
-
+createGUI()
 DirRemove("frontend/public/merged", 1)
 DirCreate("frontend/public/merged")
-
-HotKeySet("{ESC}", "ExitScript")
-Func ExitScript()
-	If ProcessExists("js_scripts/squadMortarServerSilent.exe") Then
-		ProcessClose("js_scripts/squadMortarServerSilent.exe")
-	EndIf
-	Exit
-EndFunc   ;==>ExitScript
-
 Run("js_scripts/squadMortarServerSilent.exe")
 AdlibRegister("syncMap", 500)
 runSquadMortar()
@@ -54,7 +49,7 @@ Func runSquadMortar()
 	While True
 		Sleep(1000)
 		syncCoordinates()
-		PixelSearch($aCoordinates[$iResolution][$iIsMortarActive][0], $aCoordinates[$iResolution][$iIsMortarActive][1], $aCoordinates[$iResolution][$iIsMortarActive][2], $aCoordinates[$iResolution][$iIsMortarActive][3], "0x000000", 0, 1, $hWnd)
+		PixelSearch(100, 100, 100, 100, "0x000000", 0, 1, $hWnd)
 		If @error Then
 			Sleep(1000)
 			ContinueLoop
@@ -114,14 +109,14 @@ Func runSquadMortar()
 				WEnd
 			EndIf
 
-			PixelSearch($aCoordinates[$iResolution][$iIsMortarActive][0], $aCoordinates[$iResolution][$iIsMortarActive][1], $aCoordinates[$iResolution][$iIsMortarActive][2], $aCoordinates[$iResolution][$iIsMortarActive][3], "0x000000", 0, 1, $hWnd)
+			PixelSearch(100, 100, 100, 100, "0x000000", 0, 1, $hWnd)
 			If @error Then
 				ExitLoop
 			EndIf
 
-			cSend(10, 1900, "i")
-			cSend(10, 1900, "i")
-			cSend(10, 0, "i")
+			cSend(20, 1900, "i")
+			cSend(20, 1900, "i")
+			cSend(20, 1900, "i")
 			cSend(0, 4000, "r")
 			cSend(0, 100, "o")
 			$aCoordinatesAngleCopy = $aCoordinatesAngle
@@ -139,14 +134,6 @@ Func runSquadMortar()
 		Next
 	WEnd
 EndFunc   ;==>runSquadMortar
-
-Func cSend($iPressDelay, $iPostPressDelay = 0, $sKey = "Up")
-	ControlSend("Squad", "", "", "{" & $sKey & " Down}")
-	Sleep($iPressDelay)
-	ControlSend("Squad", "", "", "{" & $sKey & " Up}")
-	Sleep($iPostPressDelay)
-	Return
-EndFunc   ;==>cSend
 
 Func getOCRRange()
 	_GDIPlus_Startup()
@@ -248,23 +235,15 @@ Func syncMap()
 	EndIf
 	FileWrite($hFile, "")
 	FileClose($hFile)
-	PixelSearch($aCoordinates[$iResolution][$iIsMapActive][0], $aCoordinates[$iResolution][$iIsMapActive][1], $aCoordinates[$iResolution][$iIsMapActive][2], $aCoordinates[$iResolution][$iIsMapActive][3], "0x191C1F", 0, 1, $hWnd)
+	PixelSearch($aCoordinates[$iResolution][$iIsMapActive][0], $aCoordinates[$iResolution][$iIsMapActive][1], $aCoordinates[$iResolution][$iIsMapActive][2], $aCoordinates[$iResolution][$iIsMapActive][3], "0xFFFFFF", 0, 1, $hWnd)
 	If @error Then
 		ControlSend("Squad", "", "", "{m}")
 		Sleep(300)
 	EndIf
-	While True
-		PixelSearch($aCoordinates[$iResolution][$iMapZoomedOut][0], $aCoordinates[$iResolution][$iMapZoomedOut][1], $aCoordinates[$iResolution][$iMapZoomedOut][2], $aCoordinates[$iResolution][$iMapZoomedOut][3], "0xFFFFFF", 0, 1, $hWnd)
-		If Not @error Then
-			Local $hHBitmap = _ScreenCapture_CaptureWnd("runtime/screenshot.png", "Squad", $aCoordinates[$iResolution][$iMapCoordinates][0], $aCoordinates[$iResolution][$iMapCoordinates][1], $aCoordinates[$iResolution][$iMapCoordinates][2], $aCoordinates[$iResolution][$iMapCoordinates][3], False)
-			ExitLoop
-		Else
-			ControlSend("Squad", "", "", "{n}")
-			Sleep(500)
-		EndIf
-	WEnd
+	_MouseWheelPlus("Squad", "down", 30)
+	Sleep(400)
 	Local $sImageNames = StringSplit($sFileContent, ";", 2)
-	Run("./imageLayeringSilent runtime/screenshot.png frontend/public/" & $sImageNames[0] & " frontend/public/merged/merged_" & $sImageNames[1] & ".png")
+	Run("./js_scripts/imageLayeringSilent runtime/screenshot.png frontend/public/" & $sImageNames[0] & " frontend/public/merged/merged_" & $sImageNames[1] & ".png")
 	;ConsoleWrite("Screenshot taken" & @CRLF)
 
 EndFunc   ;==>syncMap
@@ -287,20 +266,10 @@ Func setCoordinates()
 	$aCoordinates[$i1024x768][$iMortarRangeLine][2] = 262
 	$aCoordinates[$i1024x768][$iMortarRangeLine][3] = 416
 
-	$aCoordinates[$i1024x768][$iIsMortarActive][0] = 100
-	$aCoordinates[$i1024x768][$iIsMortarActive][1] = 100
-	$aCoordinates[$i1024x768][$iIsMortarActive][2] = 100
-	$aCoordinates[$i1024x768][$iIsMortarActive][3] = 100
-
-	$aCoordinates[$i1024x768][$iIsMapActive][0] = 1000
-	$aCoordinates[$i1024x768][$iIsMapActive][1] = 700
-	$aCoordinates[$i1024x768][$iIsMapActive][2] = 1000
-	$aCoordinates[$i1024x768][$iIsMapActive][3] = 700
-
-	$aCoordinates[$i1024x768][$iMapZoomedOut][0] = 572
-	$aCoordinates[$i1024x768][$iMapZoomedOut][1] = 236
-	$aCoordinates[$i1024x768][$iMapZoomedOut][2] = 572
-	$aCoordinates[$i1024x768][$iMapZoomedOut][3] = 236
+	$aCoordinates[$i1024x768][$iIsMapActive][0] = 700
+	$aCoordinates[$i1024x768][$iIsMapActive][1] = 133
+	$aCoordinates[$i1024x768][$iIsMapActive][2] = 900
+	$aCoordinates[$i1024x768][$iIsMapActive][3] = 133
 
 	$aCoordinates[$i1024x768][$iMapCoordinates][0] = 577
 	$aCoordinates[$i1024x768][$iMapCoordinates][1] = 224
@@ -323,82 +292,40 @@ Func setCoordinates()
 	$aCoordinates[$i1920x1080][$iMortarRangeLine][2] = 593
 	$aCoordinates[$i1920x1080][$iMortarRangeLine][3] = 543
 
-	$aCoordinates[$i1920x1080][$iIsMortarActive][0] = 100
-	$aCoordinates[$i1920x1080][$iIsMortarActive][1] = 100
-	$aCoordinates[$i1920x1080][$iIsMortarActive][2] = 100
-	$aCoordinates[$i1920x1080][$iIsMortarActive][3] = 100
-
-	$aCoordinates[$i1920x1080][$iIsMapActive][0] = 1880
-	$aCoordinates[$i1920x1080][$iIsMapActive][1] = 970
-	$aCoordinates[$i1920x1080][$iIsMapActive][2] = 1880
-	$aCoordinates[$i1920x1080][$iIsMapActive][3] = 970
-
-	$aCoordinates[$i1920x1080][$iMapZoomedOut][0] = 1032
-	$aCoordinates[$i1920x1080][$iMapZoomedOut][1] = 222
-	$aCoordinates[$i1920x1080][$iMapZoomedOut][2] = 1032
-	$aCoordinates[$i1920x1080][$iMapZoomedOut][3] = 222
+	$aCoordinates[$i1920x1080][$iIsMapActive][0] = 1050
+	$aCoordinates[$i1920x1080][$iIsMapActive][1] = 141
+	$aCoordinates[$i1920x1080][$iIsMapActive][2] = 1500
+	$aCoordinates[$i1920x1080][$iIsMapActive][3] = 141
 
 	$aCoordinates[$i1920x1080][$iMapCoordinates][0] = 1086
 	$aCoordinates[$i1920x1080][$iMapCoordinates][1] = 195
 	$aCoordinates[$i1920x1080][$iMapCoordinates][2] = 1855
 	$aCoordinates[$i1920x1080][$iMapCoordinates][3] = 964
 
+	;=================================================== 2560x1440
+	$aCoordinates[$i2560x1440][$iMortarAngleOcr][0] = 1250
+	$aCoordinates[$i2560x1440][$iMortarAngleOcr][1] = 1403
+	$aCoordinates[$i2560x1440][$iMortarAngleOcr][2] = 1305
+	$aCoordinates[$i2560x1440][$iMortarAngleOcr][3] = 1417
+
+	$aCoordinates[$i2560x1440][$iMortarRangeOcr][0] = 725
+	$aCoordinates[$i2560x1440][$iMortarRangeOcr][1] = 688
+	$aCoordinates[$i2560x1440][$iMortarRangeOcr][2] = 798
+	$aCoordinates[$i2560x1440][$iMortarRangeOcr][3] = 750
+
+	$aCoordinates[$i2560x1440][$iMortarRangeLine][0] = 795
+	$aCoordinates[$i2560x1440][$iMortarRangeLine][1] = 710
+	$aCoordinates[$i2560x1440][$iMortarRangeLine][2] = 795
+	$aCoordinates[$i2560x1440][$iMortarRangeLine][3] = 730
+
+	$aCoordinates[$i2560x1440][$iIsMapActive][0] = 1900
+	$aCoordinates[$i2560x1440][$iIsMapActive][1] = 190
+	$aCoordinates[$i2560x1440][$iIsMapActive][2] = 2200
+	$aCoordinates[$i2560x1440][$iIsMapActive][3] = 190
+
+	$aCoordinates[$i2560x1440][$iMapCoordinates][0] = 1477
+	$aCoordinates[$i2560x1440][$iMapCoordinates][1] = 260
+	$aCoordinates[$i2560x1440][$iMapCoordinates][2] = 2473
+	$aCoordinates[$i2560x1440][$iMapCoordinates][3] = 1286
+
 EndFunc   ;==>setCoordinates
-
-Func arrayCompare(Const ByRef $aArray1, Const ByRef $aArray2)
-	; Check Subscripts
-	$aArray1NumDimensions = UBound($aArray1, 0)
-	$aArray2NumDimensions = UBound($aArray2, 0)
-
-	; Static Variables
-	Static $bArrayMatch
-	Static $sEvaluationString = ""
-	Static $iDimension = 0
-
-	If $iDimension = 0 Then
-		If $aArray1NumDimensions <> $aArray2NumDimensions Then
-			Return SetError(1, 0, False)
-		EndIf
-
-		If $aArray1NumDimensions = 0 Then
-			Return SetError(2, 0, False)
-		EndIf
-	EndIf
-
-	Switch $iDimension
-		Case 0
-			; Start the iterations
-			$bArrayMatch = True
-			$iDimension = 1
-			arrayCompare($aArray1, $aArray2)
-			$iDimension = 0
-		Case Else
-			; Save string to revert back
-			$sOldString = $sEvaluationString
-
-			For $i = 0 To (UBound($aArray1, $iDimension) - 1)
-				; Add dimension to the string
-				$sEvaluationString &= "[" & $i & "]"
-
-				If $iDimension = $aArray1NumDimensions Then
-					; Evaluate the string
-					$bArrayMatch = Execute("$aArray1" & $sEvaluationString & " = $aArray2" & $sEvaluationString)
-
-				Else
-					; Call the function for the next dimension
-					$iDimension += 1
-					arrayCompare($aArray1, $aArray2)
-					$iDimension -= 1
-				EndIf
-
-				; Revert to old string
-				$sEvaluationString = $sOldString
-
-				; Dump out after the first mismatch
-				If $bArrayMatch = False Then
-					ExitLoop
-				EndIf
-			Next
-	EndSwitch
-	Return $bArrayMatch
-EndFunc   ;==>arrayCompare
