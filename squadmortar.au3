@@ -35,15 +35,20 @@ Const $iIsMapActive = 3
 Const $iMapCoordinates = 4
 
 setCoordinates()
-Local $aWinPos = WinGetPos("Squad")
-Global $iResolution = Eval("i" & $aWinPos[2] & "x" & $aWinPos[3])
 createGUI()
-DirRemove("frontend/public/merged", 1)
-DirCreate("frontend/public/merged")
-Run("js_scripts/squadMortarServerSilent.exe")
-AdlibRegister("syncMap", 500)
-runSquadMortar()
-
+If WinExists("Squad") == 1 Then
+	Local $aWinPos = WinGetPos("Squad")
+	Global $iResolution = Eval("i" & $aWinPos[2] & "x" & $aWinPos[3])
+	DirRemove("frontend/public/merged", 1)
+	DirCreate("frontend/public/merged")
+	Run("js_scripts/squadMortarServerSilent.exe")
+	AdlibRegister("syncMap", 500)
+	runSquadMortar()
+Else
+	While 1
+		Sleep(10)
+	WEnd
+EndIf
 Func runSquadMortar()
 	Local $bOnlyOneTarget = False
 	While True
