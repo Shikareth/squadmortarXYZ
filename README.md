@@ -1,3 +1,8 @@
+Work in progress. Join discord for more info https://discord.gg/Qc5y4satdz
+
+
+https://www.youtube.com/watch?v=uF3VQAWmt88
+
 npm i create-nodew-exe -g
 npm i express
 npm i jimp
