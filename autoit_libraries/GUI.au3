@@ -26,8 +26,8 @@ Func exitScript()
 	ControlSend("Squad", "", "", "{d Up}")
 	ControlSend("Squad", "", "", "{w Up}")
 	ControlSend("Squad", "", "", "{s Up}")
-	If ProcessExists("js_scripts/squadMortarServerSilent.exe") Then
-		ProcessClose("js_scripts/squadMortarServerSilent.exe")
+	If ProcessExists("squadMortarServerSilent.exe") Then
+		ProcessClose("squadMortarServerSilent.exe")
 	EndIf
 	Exit
 EndFunc   ;==>exitScript
