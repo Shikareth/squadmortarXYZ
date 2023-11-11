@@ -25,6 +25,7 @@ SquadAutoMortars is a tool designed to enhance your gaming experience in Squad b
 To download and install SquadAutoMortars:
 1. Go to [https://github.com/Devil4ngle/squadmortar/releases](https://github.com/Devil4ngle/squadmortar/releases).
 2. Download the latest release by clicking on `squadautomortar.zip`.
+Note: The release is approximately 300 MB due to included maps.
 3. Unzip the downloaded file.
 4. Inside the folder, run `squadmortar.exe` while squad is already running.
 
