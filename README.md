@@ -55,5 +55,19 @@ Feel free to explore the code and contribute to the project!
 - To compile the executable for JS, follow these steps:
   - Download [Node.js v18.18.2](https://nodejs.org/download/release/v18.18.2/node-v18.18.2-x64.msi).
   - Run `npm install -g pkg` in the terminal.
-  - Execute `pkg squadMortarServer.js -t=win` and `pkg imageLayering.js -t=win`.
-  - Use `create-nodew-exe` to create silent versions: `create-nodew-exe squadMortarServer.exe squadMortarServerSilent.exe` and `create-nodew-exe imageLayering.exe imageLayeringSilent.exe`.
+  - Execute 
+  ```cmd 
+  pkg squadMortarServer.js -t=win
+  ```
+  ```cmd 
+  pkg imageLayering.js -t=win
+  ```
+  - Use `create-nodew-exe` to create silent versions: 
+  
+  ```cmd 
+  create-nodew-exe squadMortarServer.exe squadMortarServerSilent.exe
+  ```
+
+   ```cmd 
+   create-nodew-exe imageLayering.exe imageLayeringSilent.exe
+   ```

@@ -3,14 +3,13 @@
 #include <EditConstants.au3>
 
 Func createGUI()
-	$hGUI = GUICreate("`SquadMortar 1.0", 400, 195, -1, -1, $WS_SIZEBOX + $WS_SYSMENU + $WS_MINIMIZEBOX)
+	$hGUI = GUICreate("Auto SquadMortar 1.2", 400, 195, -1, -1, $WS_SIZEBOX + $WS_SYSMENU + $WS_MINIMIZEBOX)
 	GUISetOnEvent($GUI_EVENT_CLOSE, "exitScript")
 	GUISetBkColor(0x202225)
-	$iLog = GUICtrlCreateEdit("", 10, 10, 380, 90, BitOR($ES_AUTOVSCROLL, $ES_AUTOHSCROLL, $ES_WANTRETURN, $ES_READONLY))
+	$iLog = GUICtrlCreateEdit("", 10, 10, 380, 90, BitOR($ES_AUTOVSCROLL, $ES_AUTOHSCROLL, $ES_WANTRETURN, $WS_VSCROLL, $ES_READONLY))
 	GUICtrlSetBkColor($iLog, 0x000000)
 	GUICtrlSetColor($iLog, 0x4CFF00)
 	loadDataLog($iLog)
-	GUISetIcon("resources/icon.ico", 0)
 	$hButton = GUICtrlCreateButton("Open SquadMortar Site", 10, 100, 380, 30)
 	GUICtrlSetOnEvent(-1, "eventButtonOpenHTMLFileClick")
 	$hButton = GUICtrlCreateButton("Discord", 10, 135, 185, 30)
@@ -61,7 +60,11 @@ Func loadDataLog($iLogData)
 	customConsole($iLogData, "Set in Squad following options:")
 	customConsole($iLogData, "CONTROLS -> INFANTRY -> FIRE/USE -> ALTERNATIVE = I")
 	customConsole($iLogData, "CONTROLS -> INFANTRY -> AIM DOWN SIGHTS -> ALTERNATIVE = O")
-	customConsole($iLogData, "If you have only one desktop play at 1024x768 in windowed mode", True)
+	customConsole($iLogData, "If you have only one desktop play at 1024x768 in windowed mode")
+	customConsole($iLogData, "All other resolutions must be played fullscreen and borderless only.")
+	customConsole($iLogData, "Optional Improvements:")
+	customConsole($iLogData, "Tab -> Right site of screen -> Map Icon Scale 0.3")
+	customConsole($iLogData, "Tab -> Right site of screen -> Grid Opacity 0", True)
 EndFunc   ;==>loadDataLog
 
 
@@ -75,4 +78,4 @@ EndFunc   ;==>eventButtonDiscordClick
 
 Func eventButtonOpenHTMLFileClick()
 	ShellExecute("frontend\public\index.html", "", @ScriptDir, "open")
-EndFunc   ;==>openHTMLFile
+EndFunc   ;==>eventButtonOpenHTMLFileClick

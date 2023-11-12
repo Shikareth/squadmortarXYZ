@@ -21,8 +21,8 @@ Promise.all([Jimp.read(image1Path), Jimp.read(image2Path)])
 
     image2.composite(image1, 0, 0, {
       mode: Jimp.BLEND_SOURCE_OVER,
-      opacityDest: 1, 
-      opacitySource: 0.3 
+      opacityDest: 1,
+      opacitySource: 0.8
     });
     image2.write(outputPath);
   })

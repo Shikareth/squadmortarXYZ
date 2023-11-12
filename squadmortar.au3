@@ -251,11 +251,12 @@ Func syncMap()
 		Sleep(300)
 	EndIf
 	_MouseWheelPlus("Squad", "down", 30)
-	Sleep(400)
+	Sleep(600)
 	Local $hHBitmap = _ScreenCapture_CaptureWnd("", "Squad", $aCoordinates[$iResolution][$iMapCoordinates][0], $aCoordinates[$iResolution][$iMapCoordinates][1], $aCoordinates[$iResolution][$iMapCoordinates][2], $aCoordinates[$iResolution][$iMapCoordinates][3], False)
 	_ScreenCapture_SaveImage("runtime/screenshot.png", $hHBitmap)
 	Local $sImageNames = StringSplit($sFileContent, ";", 2)
 	Run("./js_scripts/imageLayeringSilent runtime/screenshot.png frontend/public/" & $sImageNames[0] & " frontend/public/merged/merged_" & $sImageNames[1] & ".png")
+	;ConsoleWrite("./js_scripts/imageLayeringSilent runtime/screenshot.png frontend/public/" & $sImageNames[0] & " frontend/public/merged/merged_" & $sImageNames[1] & ".png")
 	;ConsoleWrite("Screenshot taken" & @CRLF)
 
 EndFunc   ;==>syncMap
