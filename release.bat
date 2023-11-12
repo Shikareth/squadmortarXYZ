@@ -35,5 +35,3 @@ if exist release\frontend\public\merged rmdir /s /q release\frontend\public\merg
 powershell Compress-Archive -Path "release\*" -DestinationPath "release\squadmortar.zip"
 
 echo Task completed successfully.
-
-pause
