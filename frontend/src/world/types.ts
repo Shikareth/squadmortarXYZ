@@ -1,7 +1,7 @@
 
 import { vec3, mat4 } from 'gl-matrix';
 import { EntityComponent, EntityType } from './components/entity';
-import { WeaponComponent } from './components/weapon';
+import { WeaponComponent, WeaponType } from './components/weapon';
 
 export type HasEntityId = {entityId: EntityId}
 export type HasTransform = {transform: Transform}
@@ -53,6 +53,7 @@ export enum WeaponActionType {
   toggleActive = "WEAPON_TOGGLE_ACTIVE",
   pickActive = "WEAPON_PICK_ACTIVE",
   setHeightOverGround = "WEAPON_SET_HEIGHT_OVER_GROUND",
+  setWeaponType = "WEAPON_SET_TYPE",
 }
 
 export type WeaponAction = 
@@ -60,6 +61,7 @@ export type WeaponAction =
   | {type: WeaponActionType.toggleActive, payload: {entityId: EntityId}}
   | {type: WeaponActionType.pickActive, payload: {entityId: EntityId}}
   | {type: WeaponActionType.setHeightOverGround, payload: {entityId: EntityId, newHeight: number}}
+  | {type: WeaponActionType.setWeaponType, payload: {entityId: EntityId, newType: WeaponType}}
 
 export type ComponentDefinition
   = {componentKey: "transform"} & HasTransform

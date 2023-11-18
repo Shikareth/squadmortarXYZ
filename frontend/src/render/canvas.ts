@@ -43,7 +43,6 @@ const drawLineScreenWidth: (ctx: CanvasRenderingContext2D, x0: number, y0: numbe
   }
 
 export function drawSpreadEllipse(ctx: CanvasRenderingContext2D, weaponToTargetVec: vec3, horizontalRadius: number, closeRadius: number, farRadius: number){
-
   let dx = weaponToTargetVec[0];
   let dy = weaponToTargetVec[1];
   let ellRot = Math.atan2(dy, dx) + Math.PI/2;

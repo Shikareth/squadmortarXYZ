@@ -2,12 +2,26 @@ import { Camera } from "../camera/types"
 import { applyTransform, newTranslation } from "../world/transformations";
 import { canvasScaleTransform, outlineText } from "./canvas";
 import { Heightmap } from "../heightmap/types";
-import { MORTAR_MIN_RANGE, MORTAR_MAX_RANGE } from "../world/constants";
+import { MORTAR_MIN_RANGE, MORTAR_MAX_RANGE, HELL_CANNON_MAX_RANGE } from "../world/constants";
 import { mat4, vec3 } from "gl-matrix";
 import { EntityId, Weapon } from "../world/types";
 import { TEXT_BLACK, TEXT_GREEN, TEXT_WHITE } from "./constants";
 import { UserSettings } from "../ui/types";
 import { canonicalEntitySort } from "../world/world";
+import { WeaponType } from "../world/components/weapon";
+
+
+const drawMaxRangeCircle = (ctx: CanvasRenderingContext2D, weaponType: WeaponType, scale: number): void => {
+  ctx.beginPath();
+  ctx.lineWidth = 1 * scale;
+  ctx.strokeStyle = '#0f0';
+  if (weaponType == "hellCannon" ){
+    ctx.arc(0, 0, HELL_CANNON_MAX_RANGE, 0, 2 * Math.PI);
+  } else if (weaponType == "standardMortar" || weaponType == "technicalMortar" ){
+    ctx.arc(0, 0, MORTAR_MAX_RANGE, 0, 2 * Math.PI);
+  }
+  ctx.stroke();
+}
 
 export const drawWeapons = (ctx: CanvasRenderingContext2D, userSettings: UserSettings, camera:Camera,  weapons: Array<Weapon>): void => {
   const activeWeapons = weapons.filter((w: Weapon) => w.isActive);
@@ -16,7 +30,6 @@ export const drawWeapons = (ctx: CanvasRenderingContext2D, userSettings: UserSet
     ctx.save()
     const canvasTransform = canvasScaleTransform(camera) 
     const scale = mat4.getScaling(vec3.create(), canvasTransform)[0]
-
     applyTransform(ctx, weapon.transform)
     if (weapon.isActive){
       ctx.beginPath();
@@ -24,12 +37,7 @@ export const drawWeapons = (ctx: CanvasRenderingContext2D, userSettings: UserSet
       ctx.strokeStyle = '#0f0';
       ctx.arc(0, 0, MORTAR_MIN_RANGE, 0, 2 * Math.PI);
       ctx.stroke();
-  
-      ctx.beginPath();
-      ctx.lineWidth = 1 * scale;
-      ctx.strokeStyle = '#0f0';
-      ctx.arc(0, 0, MORTAR_MAX_RANGE, 0, 2 * Math.PI);
-      ctx.stroke();
+      drawMaxRangeCircle(ctx, userSettings.weaponType, scale)
       if (activeWeapons.length > 1){
         ctx.save();
         applyTransform(ctx, canvasScaleTransform(camera))

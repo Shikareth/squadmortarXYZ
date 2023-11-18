@@ -1,5 +1,4 @@
 const Jimp = require('jimp');
-const path = require('path');
 
 // Get image filenames from command-line arguments
 const image1Path = process.argv[2];

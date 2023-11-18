@@ -6,8 +6,8 @@ import { Heightmap } from "../heightmap/types";
 import { Target, Transform, Weapon } from "../world/types";
 import { Maybe } from "../common/types";
 import { getHeight } from "../heightmap/heightmap";
-import { angle2groundDistance, calcSpread, distDir, getMortarFiringSolution, solveProjectileFlight, getRocketFiringSolution, FiringSolution, getHellCannonFiringSolution} from "../world/projectilePhysics";
-import { HELL_CANNON_100_DAMAGE_RANGE, HELL_CANNON_25_DAMAGE_RANGE, MAPSCALE, MORTAR_100_DAMAGE_RANGE, MORTAR_25_DAMAGE_RANGE, MORTAR_DEVIATION, MORTAR_VELOCITY, US_MIL} from "../world/constants";
+import { calcSpreadHigh, distDir, getMortarFiringSolution, solveProjectileFlightHighArc, getS5FiringSolution, FiringSolution, getHellCannonFiringSolution, getBM21FiringSolution, angle2groundDistance} from "../world/projectilePhysics";
+import { GRAVITY, HELL_CANNON_100_DAMAGE_RANGE, HELL_CANNON_25_DAMAGE_RANGE, MAPSCALE, MORTAR_100_DAMAGE_RANGE, MORTAR_25_DAMAGE_RANGE, MORTAR_DEVIATION, MORTAR_VELOCITY, US_MIL} from "../world/constants";
 import { UserSettings } from "../ui/types";
 import { $s5map } from "../elements";
 import { TEXT_RED, TEXT_WHITE } from "./constants";
@@ -131,10 +131,12 @@ const drawTargetIcon = (ctx: CanvasRenderingContext2D, camera: Camera, targetTra
 export const drawTargets = (ctx: CanvasRenderingContext2D, camera:Camera, userSettings: UserSettings, heightmap: Heightmap, weapons: Array<Weapon>, targets: Array<Target>): void => {
   if (userSettings.weaponType === "standardMortar" || userSettings.weaponType === "technicalMortar"){
     targets.forEach((t: Target) => drawMortarTarget(ctx, camera, userSettings, heightmap, weapons, t))
-  } else if (userSettings.weaponType === "rocket"){
+  } else if (userSettings.weaponType === "ub32"){
     targets.forEach((t: Target) => drawRocketPodTarget(ctx, camera, userSettings, heightmap, weapons, t))
   } else if (userSettings.weaponType === "hellCannon"){
     targets.forEach((t: Target) => drawHellCannonTarget(ctx, camera, userSettings, heightmap, weapons, t))
+  } else if (userSettings.weaponType === "bm21"){
+    targets.forEach((t: Target) => drawBM21Target(ctx, camera, userSettings, heightmap, weapons, t))
   }
 }
 
@@ -144,16 +146,17 @@ export const drawTargets = (ctx: CanvasRenderingContext2D, camera:Camera, userSe
       weaponTranslation[2] = weaponHeight + userSettings.extraWeaponHeight * 100;
 */
 
+
 const drawTargetGridMortar = (ctx: any, lineWidthFactor: number, weaponTransform: Transform, firingSolution: FiringSolution): void => {
   ctx.save()
   applyTransform(ctx,weaponTransform)
   const gridDir = Math.floor(firingSolution.dir);
-  const mil5 = Math.floor(firingSolution.milRounded / 5) * 5;
+  const mil5 = Math.floor(firingSolution.angle * US_MIL / 5) * 5;
   ctx.strokeStyle = '#0f0';
   ctx.lineWidth = 1 * lineWidthFactor;
 
   const arcRadii = [-10, -5, 0, 5, 10, 15].map(
-    x => angle2groundDistance((mil5 + x)/US_MIL, firingSolution.startHeightOffset, MORTAR_VELOCITY)
+    x => angle2groundDistance((mil5 + x)/US_MIL, firingSolution.startHeightOffset, MORTAR_VELOCITY, GRAVITY)
   );
   //console.log("angle", angle,"angle/US_MIL", angle/US_MIL, "mil5", mil5, "ar", arcRadii)
   const [ra, r0, r1, r2, r3, rb] = arcRadii;
@@ -183,7 +186,7 @@ const drawMortarTarget = (ctx: any, camera:Camera, userSettings: UserSettings, h
     const targetTranslation = getTranslation(target.transform);
     const targetHeight = getHeight(heightmap, targetTranslation)
     targetTranslation[2] = targetHeight;
-    const solution = getMortarFiringSolution(weaponTranslation, targetTranslation);
+    const solution = getMortarFiringSolution(weaponTranslation, targetTranslation).highArc;
     const lineHeight = userSettings.fontSize * (userSettings.targetCompactMode ? 1 : 1.7)
 
     if (userSettings.targetGrid){
@@ -200,7 +203,8 @@ const drawMortarTarget = (ctx: any, camera:Camera, userSettings: UserSettings, h
     }
     // firing solution text
     applyTransform(ctx, canvasScaleTransform(camera))
-    const angleValue = userSettings.weaponType === "technicalMortar" ? solution.angle / Math.PI * 180  : solution.milRounded;
+    const angleValue = userSettings.weaponType === "technicalMortar" ? solution.angle / Math.PI * 180  : solution.angle * US_MIL;
+    
     applyTransform(ctx, newTranslation(10, activeWeaponIndex * lineHeight, 0))
     if (userSettings.targetCompactMode){
       let angleText =  "-----"
@@ -219,8 +223,6 @@ const drawMortarTarget = (ctx: any, camera:Camera, userSettings: UserSettings, h
       if (activeWeapons.length > 1){
         angleText = (allWeaponsIndex[weapon.entityId] + 1).toString() + ": " + angleText;
       }
-   
-
       outlineText(ctx, angleText, "bottom", TEXT_RED, TEXT_WHITE,  userSettings.fontSize, true)
       const bottomText = userSettings.targetDistance ? `${solution.dir.toFixed(1)}° ${(solution.dist * MAPSCALE).toFixed(0)}m` : `${solution.dir.toFixed(1)}°`
       outlineText(ctx, bottomText, "top", TEXT_RED, TEXT_WHITE, userSettings.fontSize * 2 / 3, true)
@@ -247,7 +249,7 @@ function drawRocketPodTarget(ctx: any, camera:Camera, userSettings: UserSettings
     const targetTranslation = getTranslation(target.transform);
     const targetHeight = getHeight(heightmap, targetTranslation)
     targetTranslation[2] = targetHeight;
-    const solution = getRocketFiringSolution(weaponTranslation, targetTranslation);
+    const solution = getS5FiringSolution(weaponTranslation, targetTranslation);
     const lineHeight = userSettings.fontSize *  1.7;
 
     ctx.save()
@@ -255,7 +257,7 @@ function drawRocketPodTarget(ctx: any, camera:Camera, userSettings: UserSettings
     if (userSettings.targetSpread && solution.angle && solution.time) {
       ctx.strokeStyle = '#00f';
       ctx.lineWidth = 1 * canvasSizeFactor;
-      drawSpreadEllipse(ctx, vec3.subtract(vec3.create(), weaponTranslation, targetTranslation), solution.horizontalSpread, solution.closeSpread, solution.farSpread)
+      drawSpreadEllipse(ctx, solution.weaponToTargetVec, solution.horizontalSpread, solution.closeSpread, solution.farSpread)
     }
     // firing solution text
     applyTransform(ctx, canvasScaleTransform(camera))
@@ -279,6 +281,77 @@ function drawRocketPodTarget(ctx: any, camera:Camera, userSettings: UserSettings
 
   })
 }
+const drawBM21Target = (ctx: any, camera:Camera, userSettings: UserSettings, heightmap: Heightmap, weapons: Array<Weapon>, target: Target) => {
+  const canvasSizeFactor = mat4.getScaling(vec3.create(), canvasScaleTransform(camera))[0] // uniform scaling
+  canonicalEntitySort(weapons);
+  const activeWeapons = weapons.filter((w: Weapon) => w.isActive);
+  const allWeaponsIndex: any = {};
+  weapons.forEach((w: Weapon, index: number) => {
+    if (w.isActive){
+      allWeaponsIndex[w.entityId] = index;
+    }
+  })
+  activeWeapons.forEach((weapon: Weapon, activeWeaponIndex: number) => {
+    const weaponTranslation = getTranslation(weapon.transform);
+    const weaponHeight = getHeight(heightmap, weaponTranslation)
+    weaponTranslation[2] = weaponHeight +  weapon.heightOverGround;
+    const targetTranslation = getTranslation(target.transform);
+    const targetHeight = getHeight(heightmap, targetTranslation)
+    targetTranslation[2] = targetHeight;
+    const {highArc, lowArc} = getBM21FiringSolution(weaponTranslation, targetTranslation);
+    const lineHeight = userSettings.fontSize * (userSettings.targetCompactMode ? 1 : 1.7)
+
+    ctx.save()
+    applyTransform(ctx, target.transform)
+    if (userSettings.targetSpread && lowArc.angle && lowArc.time){
+      ctx.lineWidth = 1 * canvasSizeFactor
+      ctx.strokeStyle = '#00f';
+      drawSpreadEllipse(
+        ctx, 
+        lowArc.weaponToTargetVec, 
+        lowArc.horizontalSpread, 
+        lowArc.closeSpread, 
+        lowArc.farSpread
+      )
+    }
+    // firing solution text
+    applyTransform(ctx, canvasScaleTransform(camera))
+
+    
+    const angleValue = highArc.angle / Math.PI * 180;
+    const angleLowValue = lowArc.angle / Math.PI * 180;
+    
+    applyTransform(ctx, newTranslation(10, activeWeaponIndex * lineHeight, 0))
+    if (userSettings.targetCompactMode){
+      let angleText =  "-----"
+      const angleValuePrecision = 1;
+      if (lowArc.angle && angleValue >= 1000){
+        angleText = angleLowValue.toFixed(angleValuePrecision).toString().substr(1, 4 + angleValuePrecision)
+      } else if (lowArc.angle) {
+        angleText = angleLowValue.toFixed(angleValuePrecision).toString().substr(0, 3 + angleValuePrecision)
+      }
+      if (activeWeapons.length > 1){
+        angleText = (allWeaponsIndex[weapon.entityId] + 1).toString() + ": " + angleText;
+      }
+      outlineText(ctx, angleText, "middle", TEXT_RED, TEXT_WHITE, userSettings.fontSize, true)
+    } else {
+      let angleText = highArc.angle ? `${angleValue.toFixed(1)} | ${angleLowValue.toFixed(1)}` : "-----"
+      if (activeWeapons.length > 1){
+        angleText = (allWeaponsIndex[weapon.entityId] + 1).toString() + ": " + angleText;
+      }
+      outlineText(ctx, angleText, "bottom", TEXT_RED, TEXT_WHITE,  userSettings.fontSize, true)
+      const bottomTextComponents = [
+        `${highArc.dir.toFixed(1)}°`,
+        `${highArc.time ? highArc.time.toFixed(1) : "-"}s | ${lowArc.time ? lowArc.time.toFixed(1) : "-"}s`,
+        userSettings.targetDistance ?  `${(highArc.dist * MAPSCALE).toFixed(0)}m` : "",
+      ]
+      const bottomText = bottomTextComponents.join(' ')
+      outlineText(ctx, bottomText, "top", TEXT_RED, TEXT_WHITE, userSettings.fontSize * 2 / 3, true)
+    }
+    ctx.restore();
+  })
+  drawTargetIcon(ctx, camera, target.transform);
+}
 
 const drawHellCannonTarget = (ctx: any, camera:Camera, userSettings: UserSettings, heightmap: Heightmap, weapons: Array<Weapon>, target: Target) => {
   const canvasSizeFactor = mat4.getScaling(vec3.create(), canvasScaleTransform(camera))[0] // uniform scaling
@@ -297,7 +370,7 @@ const drawHellCannonTarget = (ctx: any, camera:Camera, userSettings: UserSetting
     const targetTranslation = getTranslation(target.transform);
     const targetHeight = getHeight(heightmap, targetTranslation)
     targetTranslation[2] = targetHeight;
-    const solution = getHellCannonFiringSolution(weaponTranslation, targetTranslation);
+    const {highArc, lowArc} = getHellCannonFiringSolution(weaponTranslation, targetTranslation);
     const lineHeight = userSettings.fontSize * (userSettings.targetCompactMode ? 1 : 1.7)
 
     if (userSettings.targetGrid){
@@ -308,7 +381,8 @@ const drawHellCannonTarget = (ctx: any, camera:Camera, userSettings: UserSetting
     applyTransform(ctx, target.transform)
     if (userSettings.targetSpread /* && weapons.length < 2 */){
       //console.log("spread", hSpread, closeSpread, farSpread)
-      drawHellCannonSpread(ctx, solution, canvasSizeFactor, userSettings.targetSplash);
+      drawHellCannonSpread(ctx, highArc, canvasSizeFactor, userSettings.targetSplash);
+      drawHellCannonSpread(ctx, lowArc, canvasSizeFactor, userSettings.targetSplash);
     } else if (userSettings.targetSplash){
       drawHellCannonSplash(ctx, canvasSizeFactor);
     }
@@ -316,15 +390,16 @@ const drawHellCannonTarget = (ctx: any, camera:Camera, userSettings: UserSetting
     applyTransform(ctx, canvasScaleTransform(camera))
 
     
-    const angleValue = solution.angle / Math.PI * 180;
+    const angleValue = highArc.angle / Math.PI * 180;
+    const angleLowValue = lowArc.angle / Math.PI * 180;
     
     applyTransform(ctx, newTranslation(10, activeWeaponIndex * lineHeight, 0))
     if (userSettings.targetCompactMode){
       let angleText =  "-----"
       const angleValuePrecision = 1;
-      if (solution.angle && angleValue >= 1000){
+      if (highArc.angle && angleValue >= 1000){
         angleText = angleValue.toFixed(angleValuePrecision).toString().substr(1, 4 + angleValuePrecision)
-      } else if (solution.angle) {
+      } else if (highArc.angle) {
         angleText = angleValue.toFixed(angleValuePrecision).toString().substr(0, 3 + angleValuePrecision)
       }
       if (activeWeapons.length > 1){
@@ -332,12 +407,17 @@ const drawHellCannonTarget = (ctx: any, camera:Camera, userSettings: UserSetting
       }
       outlineText(ctx, angleText, "middle", TEXT_RED, TEXT_WHITE, userSettings.fontSize, true)
     } else {
-      let angleText = solution.angle ? `${(angleValue.toFixed(1))}` : "-----"
+      let angleText = highArc.angle ? `${angleValue.toFixed(1)} | ${angleLowValue.toFixed(1)}` : "-----"
       if (activeWeapons.length > 1){
         angleText = (allWeaponsIndex[weapon.entityId] + 1).toString() + ": " + angleText;
       }
       outlineText(ctx, angleText, "bottom", TEXT_RED, TEXT_WHITE,  userSettings.fontSize, true)
-      const bottomText = userSettings.targetDistance ? `${solution.dir.toFixed(1)}° ${(solution.dist * MAPSCALE).toFixed(0)}m` : `${solution.dir.toFixed(1)}°`
+      const bottomTextComponents = [
+        `${highArc.dir.toFixed(1)}°`,
+        `${highArc.time ? highArc.time.toFixed(1) : "-"}s | ${lowArc.time ? lowArc.time.toFixed(1) : "-"}s`,
+        userSettings.targetDistance ?  `${(highArc.dist * MAPSCALE).toFixed(0)}m` : "",
+      ]
+      const bottomText = bottomTextComponents.join(' ')
       outlineText(ctx, bottomText, "top", TEXT_RED, TEXT_WHITE, userSettings.fontSize * 2 / 3, true)
     }
     ctx.restore();

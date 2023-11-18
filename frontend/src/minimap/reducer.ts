@@ -74,7 +74,7 @@ export const minimap = (state: any, action: any) => {
   if (action.type !== USAT.write || action.payload.key !== "mapId") { 
       return state;
   }
-  console.log("minimap change")
+  //console.log("minimap change")
   return transition(state, action.payload.value)
 }
  // (MMAT.set, newMinimap, transition)

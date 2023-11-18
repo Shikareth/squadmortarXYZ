@@ -32,7 +32,6 @@ export const addTarget: (location: vec3) => EntityAction =
     payload: {location, entityType: "Target"}
 })
 
-
 export const removeTarget: (entityId: EntityId) => EntityAction = 
   (entityId) => ({
     type: EntityActionType.remove,

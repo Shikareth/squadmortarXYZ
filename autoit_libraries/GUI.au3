@@ -3,7 +3,7 @@
 #include <EditConstants.au3>
 
 Func createGUI()
-	$hGUI = GUICreate("Auto SquadMortar 1.2", 400, 195, -1, -1, $WS_SIZEBOX + $WS_SYSMENU + $WS_MINIMIZEBOX)
+	$hGUI = GUICreate("Auto SquadMortar 1.3", 400, 195, -1, -1, $WS_SIZEBOX + $WS_SYSMENU + $WS_MINIMIZEBOX)
 	GUISetOnEvent($GUI_EVENT_CLOSE, "exitScript")
 	GUISetBkColor(0x202225)
 	$iLog = GUICtrlCreateEdit("", 10, 10, 380, 90, BitOR($ES_AUTOVSCROLL, $ES_AUTOHSCROLL, $ES_WANTRETURN, $WS_VSCROLL, $ES_READONLY))
@@ -64,7 +64,8 @@ Func loadDataLog($iLogData)
 	customConsole($iLogData, "All other resolutions must be played fullscreen and borderless only.")
 	customConsole($iLogData, "Optional Improvements:")
 	customConsole($iLogData, "Tab -> Right site of screen -> Map Icon Scale 0.3")
-	customConsole($iLogData, "Tab -> Right site of screen -> Grid Opacity 0", True)
+	customConsole($iLogData, "Tab -> Right site of screen -> Grid Opacity 0")
+	customConsole($iLogData, "Sync Targets only works with Standard Mortar.", True)
 EndFunc   ;==>loadDataLog
 
 

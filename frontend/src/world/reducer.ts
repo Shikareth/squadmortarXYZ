@@ -11,6 +11,7 @@ import { getEntitiesByType } from "./world";
 import { getHeight } from "../heightmap/heightmap";
 import { getMortarFiringSolution } from "./projectilePhysics";
 import { getTranslation } from "./transformations";
+import { US_MIL } from "./constants";
 
 
 const newWorld = (): World => ({
@@ -23,17 +24,17 @@ export const world: Reducer<World, StoreAction> = (state, action) => {
     this reducer intercepts entity actions which require modification of across components,
     passing on the rest to a bundle of component-specific reducers 
   */
-  if (state === undefined) {
+  if (state === undefined){
     return newWorld();
   }
-  switch (action.type) {
+  switch(action.type){
     case EntityActionType.add:
       return produce(state, (proxy: World) => {
         const newId = proxy.nextId;
         proxy.nextId = proxy.nextId + 1;
         let setAction: SetAction = produce(action, (action: any) => {
           action.type = EntityActionType.set;
-          action.payload["entityId"] = newId;
+          action.payload["entityId"] = newId; 
         }) as any;
         proxy.components = setComponentsFromActionMut(proxy.components, newId, setAction);
       })
@@ -47,7 +48,7 @@ export const world: Reducer<World, StoreAction> = (state, action) => {
       return produce(state, (proxy: World) => {
         proxy.nextId = maxEntityId(action.payload.components) + 1;
         proxy.components = insertComponentsBulkMut(newComponents(), action.payload.components);
-
+        
       })
     case EntityActionType.remove:
       return produce(state, (proxy: World) => {
@@ -101,39 +102,40 @@ export const world: Reducer<World, StoreAction> = (state, action) => {
     case EntityActionType.syncTargets:
       return produce(state, (proxy: World) => {
         const stateSync = action.payload.state;
-        const targets = getEntitiesByType<Target>(stateSync.world, "Target");
-        const weapons = getEntitiesByType<Weapon>(stateSync.world, "Weapon")
-        const heightmap = stateSync.heightmap;
-        let coorArray: string = '';
-        targets.forEach((target: Target) => {
-          const activeWeapons = weapons.filter((w: Weapon) => w.isActive);
-          activeWeapons.forEach((weapon: Weapon, activeWeaponIndex: number) => {
-            const weaponTranslation = getTranslation(weapon.transform);
-            const weaponHeight = getHeight(heightmap, weaponTranslation)
-            weaponTranslation[2] = weaponHeight + weapon.heightOverGround;
-            const targetTranslation = getTranslation(target.transform);
-            const targetHeight = getHeight(heightmap, targetTranslation)
-            targetTranslation[2] = targetHeight;
-            const solution = getMortarFiringSolution(weaponTranslation, targetTranslation);
-            const angle = solution.dir.toFixed(1);
-            const rangeV = solution.milRounded;
-            const range = solution.angle ? `${(rangeV.toFixed(1))}` : "-----"
-            const dataToSave = `${range},${angle}`;
-            if (coorArray !== '') {
-              coorArray = coorArray + ';';
-            }
-            coorArray = coorArray + dataToSave;
+        if(stateSync.userSettings.weaponType === "standardMortar") {
+          const targets = getEntitiesByType<Target>(stateSync.world, "Target");
+          const weapons = getEntitiesByType<Weapon>(stateSync.world, "Weapon")
+          const heightmap = stateSync.heightmap;
+          let coorArray: string = '';
+          targets.forEach((target: Target) => {
+            const activeWeapons = weapons.filter((w: Weapon) => w.isActive);
+            activeWeapons.forEach((weapon: Weapon, activeWeaponIndex: number) => {
+              const weaponTranslation = getTranslation(weapon.transform);
+              const weaponHeight = getHeight(heightmap, weaponTranslation)
+              weaponTranslation[2] = weaponHeight + weapon.heightOverGround;
+              const targetTranslation = getTranslation(target.transform);
+              const targetHeight = getHeight(heightmap, targetTranslation)
+              targetTranslation[2] = targetHeight;
+              const solution = getMortarFiringSolution(weaponTranslation, targetTranslation).highArc;
+              const angle = solution.dir.toFixed(1);
+              const rangeV = solution.angle * US_MIL;
+              const range = solution.angle ? `${(rangeV.toFixed(1))}` : "-----"
+              const dataToSave = `${range},${angle}`;
+              if (coorArray !== '') {
+                coorArray = coorArray + ';';
+              }
+              coorArray = coorArray + dataToSave;
+            });
           });
-        });
-        fetch("http://localhost:4545/coordinates", {
-          method: 'POST',
-          mode: "no-cors",
-          headers: {
-            'Content-Type': 'text/plain'
-          },
-          body: coorArray
-        })
-
+          fetch("http://localhost:4545/coordinates", {
+            method: 'POST',
+            mode: "no-cors",
+            headers: {
+              'Content-Type': 'text/plain'
+            },
+            body: coorArray
+          })
+       }
       });
     default:
       return produce(state, (proxy: World) => {

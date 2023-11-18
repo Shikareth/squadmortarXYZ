@@ -2,15 +2,14 @@ import { dispatch, Store0 } from '../store';
 import { newMousePosition, setMouseDown, setDragEntity, setDragStartPosition, updateTouch, removeTouch } from './actions';
 import { changeZoom, moveCamera} from '../camera/actions';
 import { vec3 } from 'gl-matrix';
-import { canvas2world, canvas2worldScale, event2canvas, getTranslation} from '../world/transformations';
+import { canvas2world, canvas2worldScale, event2canvas} from '../world/transformations';
 import { getClosestEntity, getEntitiesByType} from '../world/world';
 import { TouchInfo} from './types';
 import { addTarget, addWeapon, moveEntityBy, moveEntityTo, removeTarget, toggleWeaponActive } from '../world/actions';
 import { $canvas, $contourmap } from '../elements';
 import { getZoom } from '../camera/camera';
-import { EntityId, Target, Weapon } from '../world/types';
-import { getMortarFiringSolution } from '../world/projectilePhysics';
-import { getHeight } from '../heightmap/heightmap';
+import { EntityId } from '../world/types';
+import { EntityComponent } from '../world/components/entity';
 
 
 const dragOrPan = (store: Store0, event: any) => {

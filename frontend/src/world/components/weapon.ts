@@ -21,7 +21,7 @@ export type WeaponComponent = {
   isActive: boolean;
   heightOverGround: number;
 }
-export type WeaponType = "standardMortar" | "technicalMortar" | "rocket" | "hellCannon"
+export type WeaponType = "standardMortar" | "technicalMortar" | "ub32" | "hellCannon" | "bm21"
 
 type State = Map<EntityId, WeaponComponent>;
 export const weaponReducer: (state: State, action: StoreAction) => State = 
