@@ -5,7 +5,8 @@
   "scripts": {
     "server": "live-server --port=8000 ./public",
     "dev": "webpack --watch --env NODE_ENV=development --config dev.config.js",
-    "build": "webpack --watch --env NODE_ENV=production --config prod.config.js"
+    "build": "webpack --watch --env NODE_ENV=production --config prod.config.js",
+    "buildOnce": "webpack --env NODE_ENV=production --config prod.config.js"
   },
   "repository": {
     "type": "git",

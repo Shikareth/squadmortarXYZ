@@ -67,13 +67,17 @@ export const world: Reducer<World, StoreAction> = (state, action) => {
       return produce(state, (proxy: World) => {
         const cacheBuster = new Date().getTime();
         const startTime = Date.now();
+        const performanceStart = performance.now();
         const tryFetchImage = () => {
-          fetch(`merged/merged_${cacheBuster}.png`, {
+          fetch(`merged/merged_${cacheBuster}.jpg`, {
             method: 'GET',
             mode: 'no-cors',
           })
             .then((response) => {
-              action.payload.state.minimap.texture.image.src = `merged/merged_${cacheBuster}.png`;
+              action.payload.state.minimap.texture.image.src = `merged/merged_${cacheBuster}.jpg`, 5000
+              const endTime = performance.now();
+              const elapsedTime = endTime - performanceStart;
+              console.log(`Elapsed time: ${elapsedTime} milliseconds`);
             })
             .catch((error) => {
               const currentTime = Date.now();
@@ -93,7 +97,7 @@ export const world: Reducer<World, StoreAction> = (state, action) => {
           headers: {
             'Content-Type': 'text/plain'
           },
-          body: action.payload.state.minimap.texture.source + ";" + cacheBuster
+          body: action.payload.state.minimap.texture.source + ";merged_"+ cacheBuster+".jpg"
         }).then((response) => {
           tryFetchImage();
         });

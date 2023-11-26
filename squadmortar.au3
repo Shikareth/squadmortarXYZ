@@ -27,6 +27,7 @@ Global $aCoordinatesRange[0]
 Global $aCoordinatesAngle[0]
 Global $hWnd = WinGetHandle("Squad")
 Global $aCoordinates[3][5][4]
+Global $bActiveSquadOnMapSync = False
 
 Const $i1024x768 = 0
 Const $i1920x1080 = 1
@@ -40,20 +41,23 @@ Const $iMapCoordinates = 4
 setCoordinates()
 createGUI()
 If WinExists("Squad") == 1 Then
-	Local $aWinPos = WinGetPos("Squad")
-	Global $iResolution = Eval("i" & $aWinPos[2] & "x" & $aWinPos[3])
+	Local $aWinPos = WinGetClientSize("Squad")
+	Global $iResolution = Eval("i" & $aWinPos[0] & "x" & $aWinPos[1])
 	DirRemove("frontend/public/merged", 1)
 	DirCreate("frontend/public/merged")
 	DirRemove("runtime", 1)
 	DirCreate("runtime")
 	Run("js_scripts/squadMortarServerSilent.exe")
 	AdlibRegister("syncMap", 500)
+	_GDIPlus_Startup()
 	runSquadMortar()
+
 Else
 	While 1
-		Sleep(10)
+		Sleep(1000)
 	WEnd
 EndIf
+
 Func runSquadMortar()
 	Local $bOnlyOneTarget = False
 	While True
@@ -70,6 +74,11 @@ Func runSquadMortar()
 			;ConsoleWrite('Angle from sync ' & $aCoordinatesAngle[$i] & @CRLF)
 
 			If Not $bOnlyOneTarget Then
+
+				If syncExitLoop() Then
+					$bOnlyOneTarget = False
+					ExitLoop
+				EndIf
 
 				While (True)
 					PixelSearch($aCoordinates[$iResolution][$iMortarRangeLine][0], $aCoordinates[$iResolution][$iMortarRangeLine][1], $aCoordinates[$iResolution][$iMortarRangeLine][2], $aCoordinates[$iResolution][$iMortarRangeLine][3], "0x000000", 0, 1, $hWnd)
@@ -95,6 +104,11 @@ Func runSquadMortar()
 					cSend(0, 0, "w")
 				WEnd
 
+				If syncExitLoop() Then
+					$bOnlyOneTarget = False
+					ExitLoop
+				EndIf
+
 				While (True)
 					$fAngleOcr = Number(getOCRAngle(), 3)
 					If Not @error And $fAngleOcr > 0 And $fAngleOcr < 360 Then
@@ -112,30 +126,56 @@ Func runSquadMortar()
 							$fTimes = -$fDiff
 							$sKey = "a"
 						EndIf
-						cSend($fTimes * 19.98, 0, $sKey)
+						cSend($fTimes * 19.98, 200, $sKey)
+
+						$fAngleOcr = Number(getOCRAngle(), 3)
+						;ConsoleWrite($fAngleOcr & " OCR Coordinates" & @CRLF)
+						;ConsoleWrite($aCoordinatesAngle[$i] & " Actual Coordinates" & @CRLF)
+						Local $fDiff = $aCoordinatesAngle[$i] - $fAngleOcr
+						Local $bCorrection = False
+						If $fDiff < -180 Then $fDiff += 360
+						If $fDiff > 180 Then $fDiff -= 360
+						If $fDiff > 0 Then
+							If $fDiff > 0.49 Then
+								$bCorrection = True
+								If $fDiff > 0.85 Then
+									$fTimes = 3
+								Else
+									$fTimes = 0
+								EndIf
+								$sKey = "d"
+							EndIf
+						Else
+							If - $fDiff > 0.49 Then
+								$bCorrection = True
+								If - $fDiff > 0.85 Then
+									$fTimes = 3
+								Else
+									$fTimes = 0
+								EndIf
+								$sKey = "a"
+							EndIf
+						EndIf
+						If $bCorrection Then
+							cSend($fTimes, 0, $sKey)
+						EndIf
 						ExitLoop
 					EndIf
 					cSend(0, 0, "d")
 				WEnd
 			EndIf
 
-			PixelSearch(100, 100, 100, 100, "0x000000", 0, 1, $hWnd)
-			If @error Then
-				ExitLoop
-			EndIf
-
-			cSend(20, 1900, "i")
-			cSend(20, 1900, "i")
-			cSend(20, 1900, "i")
-			cSend(0, 4000, "r")
-			cSend(0, 100, "o")
-			$aCoordinatesAngleCopy = $aCoordinatesAngle
-			$aCoordinatesRangeCopy = $aCoordinatesRange
-			syncCoordinates()
-			If Not arrayCompare($aCoordinatesAngleCopy, $aCoordinatesAngle) Or Not arrayCompare($aCoordinatesRangeCopy, $aCoordinatesRange) Then
+			If syncExitLoop() Then
 				$bOnlyOneTarget = False
 				ExitLoop
 			EndIf
+
+			cSend(20, 1730, "i")
+			cSend(20, 1730, "i")
+			cSend(20, 10, "i")
+			cSend(0, 3100, "r")
+			cSend(0, 0, "o")
+
 			If UBound($aCoordinatesRange) == 1 Then
 				$bOnlyOneTarget = True
 			Else
@@ -145,13 +185,28 @@ Func runSquadMortar()
 	WEnd
 EndFunc   ;==>runSquadMortar
 
+Func syncExitLoop()
+	PixelSearch(100, 100, 100, 100, "0x000000", 0, 1, $hWnd)
+	If @error Then
+		Return True
+	EndIf
+	$aCoordinatesAngleCopy = $aCoordinatesAngle
+	$aCoordinatesRangeCopy = $aCoordinatesRange
+	syncCoordinates()
+	If Not arrayCompare($aCoordinatesAngleCopy, $aCoordinatesAngle) Or Not arrayCompare($aCoordinatesRangeCopy, $aCoordinatesRange) Then
+		Return True
+	EndIf
+	Return False
+EndFunc   ;==>syncExitLoop
+
 Func getOCRRange()
-	_GDIPlus_Startup()
 	Local $hHBitmap = _ScreenCapture_CaptureWnd("", "Squad", $aCoordinates[$iResolution][$iMortarRangeOcr][0], $aCoordinates[$iResolution][$iMortarRangeOcr][1], $aCoordinates[$iResolution][$iMortarRangeOcr][2], $aCoordinates[$iResolution][$iMortarRangeOcr][3], False)
 	Local $hBitmap = _GDIPlus_BitmapCreateFromHBITMAP($hHBitmap)
 	Local $aDim = _GDIPlus_ImageGetDimension($hBitmap)
 	$hBitmap = _GDIPlus_ImageResize($hBitmap, $aDim[0] * 2, $aDim[1] * 2)
-	$hEffect = _GDIPlus_EffectCreateBrightnessContrast(0, 60)
+	Local $hEffect = _GDIPlus_EffectCreateColorBalance(65, 65, 65)
+	_GDIPlus_BitmapApplyEffect($hBitmap, $hEffect)
+	Local $hEffect = _GDIPlus_EffectCreateSharpen(255, 50)
 	_GDIPlus_BitmapApplyEffect($hBitmap, $hEffect)
 	Local $iWidth = _GDIPlus_ImageGetWidth($hBitmap)
 	Local $iHeight = _GDIPlus_ImageGetHeight($hBitmap)
@@ -169,7 +224,6 @@ Func getOCRRange()
 	_WinAPI_DeleteObject($hHBitmap)
 	_GDIPlus_BitmapDispose($hBitmap)
 	_GDIPlus_BitmapDispose($hBitmapBuffered)
-	_GDIPlus_Shutdown()
 
 	If $sOCRTextResult <> "" Then
 		Return StringRegExpReplace($sOCRTextResult, "[^0-9]", "")
@@ -178,7 +232,6 @@ Func getOCRRange()
 EndFunc   ;==>getOCRRange
 
 Func getOCRAngle()
-	_GDIPlus_Startup()
 	Local $hHBitmap = _ScreenCapture_CaptureWnd("", "Squad", $aCoordinates[$iResolution][$iMortarAngleOcr][0], $aCoordinates[$iResolution][$iMortarAngleOcr][1], $aCoordinates[$iResolution][$iMortarAngleOcr][2], $aCoordinates[$iResolution][$iMortarAngleOcr][3], False)
 	Local $hBitmap = _GDIPlus_BitmapCreateFromHBITMAP($hHBitmap)
 	Local $aDim = _GDIPlus_ImageGetDimension($hBitmap)
@@ -201,7 +254,6 @@ Func getOCRAngle()
 	_WinAPI_DeleteObject($hHBitmap)
 	_GDIPlus_BitmapDispose($hBitmap)
 	_GDIPlus_BitmapDispose($hBitmapBuffered)
-	_GDIPlus_Shutdown()
 	If $sOCRTextResult <> "" Then
 		Return StringRegExpReplace($sOCRTextResult, "[^0-9.]", "")
 	EndIf
@@ -245,18 +297,24 @@ Func syncMap()
 	EndIf
 	FileWrite($hFile, "")
 	FileClose($hFile)
+	If $bActiveSquadOnMapSync == True Then
+		WinActivate("Squad")
+		Sleep(200)
+	EndIf
+
 	PixelSearch($aCoordinates[$iResolution][$iIsMapActive][0], $aCoordinates[$iResolution][$iIsMapActive][1], $aCoordinates[$iResolution][$iIsMapActive][2], $aCoordinates[$iResolution][$iIsMapActive][3], "0xFFFFFF", 0, 1, $hWnd)
 	If @error Then
 		ControlSend("Squad", "", "", "{m}")
 		Sleep(300)
 	EndIf
+
 	_MouseWheelPlus("Squad", "down", 30)
 	Sleep(600)
 	Local $hHBitmap = _ScreenCapture_CaptureWnd("", "Squad", $aCoordinates[$iResolution][$iMapCoordinates][0], $aCoordinates[$iResolution][$iMapCoordinates][1], $aCoordinates[$iResolution][$iMapCoordinates][2], $aCoordinates[$iResolution][$iMapCoordinates][3], False)
-	_ScreenCapture_SaveImage("runtime/screenshot.png", $hHBitmap)
+	_ScreenCapture_SaveImage("runtime/screenshot.jpg", $hHBitmap)
 	Local $sImageNames = StringSplit($sFileContent, ";", 2)
-	Run("./js_scripts/imageLayeringSilent runtime/screenshot.png frontend/public/" & $sImageNames[0] & " frontend/public/merged/merged_" & $sImageNames[1] & ".png")
-	;ConsoleWrite("./js_scripts/imageLayeringSilent runtime/screenshot.png frontend/public/" & $sImageNames[0] & " frontend/public/merged/merged_" & $sImageNames[1] & ".png")
+	Run("./js_scripts/imageLayeringSilent runtime/screenshot.jpg frontend/public/" & $sImageNames[0] & " frontend/public/merged/" & $sImageNames[1])
+	;ConsoleWrite("./js_scripts/imageLayeringSilent runtime/screenshot.jpg frontend/public/" & $sImageNames[0] & " frontend/public/merged/" & $sImageNames[1] & @CRLF)
 	;ConsoleWrite("Screenshot taken" & @CRLF)
 
 EndFunc   ;==>syncMap
@@ -295,7 +353,7 @@ Func setCoordinates()
 	$aCoordinates[$i1920x1080][$iMortarAngleOcr][2] = 980
 	$aCoordinates[$i1920x1080][$iMortarAngleOcr][3] = 1063
 
-	$aCoordinates[$i1920x1080][$iMortarRangeOcr][0] = 541
+	$aCoordinates[$i1920x1080][$iMortarRangeOcr][0] = 531
 	$aCoordinates[$i1920x1080][$iMortarRangeOcr][1] = 513
 	$aCoordinates[$i1920x1080][$iMortarRangeOcr][2] = 605
 	$aCoordinates[$i1920x1080][$iMortarRangeOcr][3] = 560
@@ -321,7 +379,7 @@ Func setCoordinates()
 	$aCoordinates[$i2560x1440][$iMortarAngleOcr][2] = 1305
 	$aCoordinates[$i2560x1440][$iMortarAngleOcr][3] = 1417
 
-	$aCoordinates[$i2560x1440][$iMortarRangeOcr][0] = 725
+	$aCoordinates[$i2560x1440][$iMortarRangeOcr][0] = 695
 	$aCoordinates[$i2560x1440][$iMortarRangeOcr][1] = 688
 	$aCoordinates[$i2560x1440][$iMortarRangeOcr][2] = 798
 	$aCoordinates[$i2560x1440][$iMortarRangeOcr][3] = 750
