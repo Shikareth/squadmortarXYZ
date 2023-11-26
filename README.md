@@ -61,7 +61,7 @@ Feel free to explore the code and contribute to the project!
   ```cmd 
   pkg imageLayering.js -t=win
   ```
-  - Use `create-nodew-exe` to create silent versions: 
+- Use `create-nodew-exe` to create silent versions: 
   
   ```cmd 
   create-nodew-exe squadMortarServer.exe squadMortarServerSilent.exe
