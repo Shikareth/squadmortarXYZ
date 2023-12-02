@@ -23,6 +23,9 @@ for %%f in (release\js_scripts\*) do (
 
 if exist release\js_scripts\node_modules rmdir /s /q release\js_scripts\node_modules
 
+mkdir release\autoit_libraries
+copy autoit_libraries\mp.x64.dll release\autoit_libraries
+copy autoit_libraries\mp.dll release\autoit_libraries
 
 :: Create the 'frontend' folder inside 'release'
 mkdir release\frontend\public

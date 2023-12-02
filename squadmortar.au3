@@ -8,6 +8,7 @@
 #include "autoit_libraries/UWPOCR.au3"
 #include "autoit_libraries/common.au3"
 #include "autoit_libraries/GUI.au3"
+#include "autoit_libraries/mp.au3"
 #include <SendMessage.au3>
 #include <WindowsConstants.au3>
 #include <ScrollBarConstants.au3>
@@ -22,7 +23,8 @@ Opt("PixelCoordMode", 0)
 ; Set window Mode for MouseClick
 Opt("MouseCoordMode", 0)
 
-
+_MP_Init()
+Global $oData = _MP_SharedData()
 Global $aCoordinatesRange[0]
 Global $aCoordinatesAngle[0]
 Global $hWnd = WinGetHandle("Squad")
@@ -38,26 +40,35 @@ Const $iMortarRangeLine = 2
 Const $iIsMapActive = 3
 Const $iMapCoordinates = 4
 
+_GDIPlus_Startup()
 setCoordinates()
-createGUI()
 If WinExists("Squad") == 1 Then
 	Local $aWinPos = WinGetClientSize("Squad")
 	Global $iResolution = Eval("i" & $aWinPos[0] & "x" & $aWinPos[1])
-	DirRemove("frontend/public/merged", 1)
-	DirCreate("frontend/public/merged")
-	DirRemove("runtime", 1)
-	DirCreate("runtime")
-	Run("js_scripts/squadMortarServerSilent.exe")
-	AdlibRegister("syncMap", 500)
-	_GDIPlus_Startup()
-	runSquadMortar()
-
-Else
-	While 1
-		Sleep(1000)
-	WEnd
 EndIf
 
+If _MP_IsMain() Then
+	main()
+Else
+	angleMortar()
+EndIf
+
+Func main()
+	createGUI()
+	If WinExists("Squad") == 1 Then
+		DirRemove("frontend/public/merged", 1)
+		DirCreate("frontend/public/merged")
+		DirRemove("runtime", 1)
+		DirCreate("runtime")
+		Run("js_scripts/squadMortarServerSilent.exe")
+		AdlibRegister("syncMap", 500)
+		runSquadMortar()
+	Else
+		While 1
+			Sleep(1000)
+		WEnd
+	EndIf
+EndFunc   ;==>main
 Func runSquadMortar()
 	Local $bOnlyOneTarget = False
 	While True
@@ -79,90 +90,10 @@ Func runSquadMortar()
 					$bOnlyOneTarget = False
 					ExitLoop
 				EndIf
-
-				While (True)
-					PixelSearch($aCoordinates[$iResolution][$iMortarRangeLine][0], $aCoordinates[$iResolution][$iMortarRangeLine][1], $aCoordinates[$iResolution][$iMortarRangeLine][2], $aCoordinates[$iResolution][$iMortarRangeLine][3], "0x000000", 0, 1, $hWnd)
-					If Not @error Then
-						$iRangeOcr = Number(getOCRRange())
-						If Not @error And $iRangeOcr > 809 And $iRangeOcr < 1581 Then
-							If $iRangeOcr == $aCoordinatesRange[$i] Then
-								ExitLoop
-							EndIf
-							Local $fTimes
-							If $iRangeOcr < $aCoordinatesRange[$i] Then
-								$fTimes = ($aCoordinatesRange[$i] - $iRangeOcr) / 10
-								$sKey = "w"
-							EndIf
-							If $iRangeOcr > $aCoordinatesRange[$i] Then
-								$fTimes = ($iRangeOcr - $aCoordinatesRange[$i]) / 10
-								$sKey = "s"
-							EndIf
-							cSend($fTimes * 62.5, 0, $sKey)
-							ExitLoop
-						EndIf
-					EndIf
-					cSend(0, 0, "w")
-				WEnd
-
-				If syncExitLoop() Then
-					$bOnlyOneTarget = False
-					ExitLoop
-				EndIf
-
-				While (True)
-					$fAngleOcr = Number(getOCRAngle(), 3)
-					If Not @error And $fAngleOcr > 0 And $fAngleOcr < 360 Then
-						If $fAngleOcr == $aCoordinatesAngle[$i] Then
-							ExitLoop
-						EndIf
-						Local $fTimes
-						Local $fDiff = $aCoordinatesAngle[$i] - $fAngleOcr
-						If $fDiff < -180 Then $fDiff += 360
-						If $fDiff > 180 Then $fDiff -= 360
-						If $fDiff > 0 Then
-							$fTimes = $fDiff
-							$sKey = "d"
-						Else
-							$fTimes = -$fDiff
-							$sKey = "a"
-						EndIf
-						cSend($fTimes * 19.98, 200, $sKey)
-
-						$fAngleOcr = Number(getOCRAngle(), 3)
-						;ConsoleWrite($fAngleOcr & " OCR Coordinates" & @CRLF)
-						;ConsoleWrite($aCoordinatesAngle[$i] & " Actual Coordinates" & @CRLF)
-						Local $fDiff = $aCoordinatesAngle[$i] - $fAngleOcr
-						Local $bCorrection = False
-						If $fDiff < -180 Then $fDiff += 360
-						If $fDiff > 180 Then $fDiff -= 360
-						If $fDiff > 0 Then
-							If $fDiff > 0.49 Then
-								$bCorrection = True
-								If $fDiff > 0.85 Then
-									$fTimes = 3
-								Else
-									$fTimes = 0
-								EndIf
-								$sKey = "d"
-							EndIf
-						Else
-							If - $fDiff > 0.49 Then
-								$bCorrection = True
-								If - $fDiff > 0.85 Then
-									$fTimes = 3
-								Else
-									$fTimes = 0
-								EndIf
-								$sKey = "a"
-							EndIf
-						EndIf
-						If $bCorrection Then
-							cSend($fTimes, 0, $sKey)
-						EndIf
-						ExitLoop
-					EndIf
-					cSend(0, 0, "d")
-				WEnd
+				$oData.fAngle = $aCoordinatesAngle[$i]
+				Local $iSubProcessId = _MP_Fork()
+				rangeMortar($i)
+				_MP_Wait($iSubProcessId)
 			EndIf
 
 			If syncExitLoop() Then
@@ -181,14 +112,106 @@ Func runSquadMortar()
 			Else
 				$bOnlyOneTarget = False
 			EndIf
+
+			If syncExitLoop(False) Then
+				$bOnlyOneTarget = False
+				ExitLoop
+			EndIf
 		Next
 	WEnd
 EndFunc   ;==>runSquadMortar
 
-Func syncExitLoop()
-	PixelSearch(100, 100, 100, 100, "0x000000", 0, 1, $hWnd)
-	If @error Then
-		Return True
+Func angleMortar()
+	$fAngle = $oData.fAngle
+	setCoordinates()
+	While (True)
+		$fAngleOcr = Number(getOCRAngle(), 3)
+		If Not @error And $fAngleOcr > 0 And $fAngleOcr < 360 Then
+			If $fAngleOcr == $fAngle Then
+				ExitLoop
+			EndIf
+			Local $fTimes
+			Local $fDiff = $fAngle - $fAngleOcr
+			If $fDiff < -180 Then $fDiff += 360
+			If $fDiff > 180 Then $fDiff -= 360
+			If $fDiff > 0 Then
+				$fTimes = $fDiff
+				$sKey = "d"
+			Else
+				$fTimes = -$fDiff
+				$sKey = "a"
+			EndIf
+			cSend($fTimes * 19.98, 200, $sKey)
+
+			$fAngleOcr = Number(getOCRAngle(), 3)
+			;ConsoleWrite($fAngleOcr & " OCR Coordinates" & @CRLF)
+			;ConsoleWrite($fAngle & " Actual Coordinates" & @CRLF)
+			Local $fDiff = $fAngle - $fAngleOcr
+			Local $bCorrection = False
+			If $fDiff < -180 Then $fDiff += 360
+			If $fDiff > 180 Then $fDiff -= 360
+			If $fDiff > 0 Then
+				If $fDiff > 0.49 Then
+					$bCorrection = True
+					If $fDiff > 0.85 Then
+						$fTimes = 3
+					Else
+						$fTimes = 0
+					EndIf
+					$sKey = "d"
+				EndIf
+			Else
+				If - $fDiff > 0.49 Then
+					$bCorrection = True
+					If - $fDiff > 0.85 Then
+						$fTimes = 3
+					Else
+						$fTimes = 0
+					EndIf
+					$sKey = "a"
+				EndIf
+			EndIf
+			If $bCorrection Then
+				cSend($fTimes, 0, $sKey)
+			EndIf
+			ExitLoop
+		EndIf
+		cSend(0, 0, "d")
+	WEnd
+EndFunc   ;==>angleMortar
+
+Func rangeMortar($i)
+	While (True)
+		PixelSearch($aCoordinates[$iResolution][$iMortarRangeLine][0], $aCoordinates[$iResolution][$iMortarRangeLine][1], $aCoordinates[$iResolution][$iMortarRangeLine][2], $aCoordinates[$iResolution][$iMortarRangeLine][3], "0x000000", 0, 1, $hWnd)
+		If Not @error Then
+			$iRangeOcr = Number(getOCRRange())
+			If Not @error And $iRangeOcr > 809 And $iRangeOcr < 1581 Then
+				If $iRangeOcr == $aCoordinatesRange[$i] Then
+					ExitLoop
+				EndIf
+				Local $fTimes
+				If $iRangeOcr < $aCoordinatesRange[$i] Then
+					$fTimes = ($aCoordinatesRange[$i] - $iRangeOcr) / 10
+					$sKey = "w"
+				EndIf
+				If $iRangeOcr > $aCoordinatesRange[$i] Then
+					$fTimes = ($iRangeOcr - $aCoordinatesRange[$i]) / 10
+					$sKey = "s"
+				EndIf
+				cSend($fTimes * 62.5, 0, $sKey)
+				ExitLoop
+			EndIf
+		EndIf
+		cSend(0, 0, "w")
+	WEnd
+EndFunc   ;==>rangeMortar
+
+Func syncExitLoop($bWithPixelSearch = True)
+	If $bWithPixelSearch Then
+		PixelSearch(100, 100, 100, 100, "0x000000", 0, 1, $hWnd)
+		If @error Then
+			Return True
+		EndIf
 	EndIf
 	$aCoordinatesAngleCopy = $aCoordinatesAngle
 	$aCoordinatesRangeCopy = $aCoordinatesRange
@@ -254,6 +277,7 @@ Func getOCRAngle()
 	_WinAPI_DeleteObject($hHBitmap)
 	_GDIPlus_BitmapDispose($hBitmap)
 	_GDIPlus_BitmapDispose($hBitmapBuffered)
+	_GDIPlus_Shutdown()
 	If $sOCRTextResult <> "" Then
 		Return StringRegExpReplace($sOCRTextResult, "[^0-9.]", "")
 	EndIf
