@@ -24,17 +24,17 @@ export const world: Reducer<World, StoreAction> = (state, action) => {
     this reducer intercepts entity actions which require modification of across components,
     passing on the rest to a bundle of component-specific reducers 
   */
-  if (state === undefined){
+  if (state === undefined) {
     return newWorld();
   }
-  switch(action.type){
+  switch (action.type) {
     case EntityActionType.add:
       return produce(state, (proxy: World) => {
         const newId = proxy.nextId;
         proxy.nextId = proxy.nextId + 1;
         let setAction: SetAction = produce(action, (action: any) => {
           action.type = EntityActionType.set;
-          action.payload["entityId"] = newId; 
+          action.payload["entityId"] = newId;
         }) as any;
         proxy.components = setComponentsFromActionMut(proxy.components, newId, setAction);
       })
@@ -48,7 +48,7 @@ export const world: Reducer<World, StoreAction> = (state, action) => {
       return produce(state, (proxy: World) => {
         proxy.nextId = maxEntityId(action.payload.components) + 1;
         proxy.components = insertComponentsBulkMut(newComponents(), action.payload.components);
-        
+
       })
     case EntityActionType.remove:
       return produce(state, (proxy: World) => {
@@ -74,10 +74,21 @@ export const world: Reducer<World, StoreAction> = (state, action) => {
             mode: 'no-cors',
           })
             .then((response) => {
-              action.payload.state.minimap.texture.image.src = `merged/merged_${cacheBuster}.jpg`, 5000
-              const endTime = performance.now();
-              const elapsedTime = endTime - performanceStart;
-              console.log(`Elapsed time: ${elapsedTime} milliseconds`);
+              if (response.ok) {
+                action.payload.state.minimap.texture.image.src = `merged/merged_${cacheBuster}.jpg`, 5000
+                const endTime = performance.now();
+                const elapsedTime = endTime - performanceStart;
+                console.log(`Elapsed time: ${elapsedTime} milliseconds`);
+              } else {
+                const currentTime = Date.now();
+                if (currentTime - startTime < 20000) {
+                  // Retry fetching the image after a delay of 1000 ms (1 second)
+                  setTimeout(tryFetchImage, 1000);
+                } else {
+                  // Fallback to the original image source if retries have exceeded 20 seconds
+                  action.payload.state.minimap.texture.image.src = action.payload.state.minimap.texture.source;
+                }
+              }
             })
             .catch((error) => {
               const currentTime = Date.now();
@@ -97,7 +108,7 @@ export const world: Reducer<World, StoreAction> = (state, action) => {
           headers: {
             'Content-Type': 'text/plain'
           },
-          body: action.payload.state.minimap.texture.source + ";merged_"+ cacheBuster+".jpg"
+          body: action.payload.state.minimap.texture.source + ";merged_" + cacheBuster + ".jpg"
         }).then((response) => {
           tryFetchImage();
         });
@@ -106,7 +117,7 @@ export const world: Reducer<World, StoreAction> = (state, action) => {
     case EntityActionType.syncTargets:
       return produce(state, (proxy: World) => {
         const stateSync = action.payload.state;
-        if(stateSync.userSettings.weaponType === "standardMortar") {
+        if (stateSync.userSettings.weaponType === "standardMortar") {
           const targets = getEntitiesByType<Target>(stateSync.world, "Target");
           const weapons = getEntitiesByType<Weapon>(stateSync.world, "Weapon")
           const heightmap = stateSync.heightmap;
@@ -139,7 +150,7 @@ export const world: Reducer<World, StoreAction> = (state, action) => {
             },
             body: coorArray
           })
-       }
+        }
       });
     default:
       return produce(state, (proxy: World) => {

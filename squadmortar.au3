@@ -55,6 +55,7 @@ EndIf
 
 Func main()
 	createGUI()
+	Run("js_scripts/squadMortarServerWebsiteSilent.exe")
 	If WinExists("Squad") == 1 Then
 		DirRemove("frontend/public/merged", 1)
 		DirCreate("frontend/public/merged")
@@ -70,7 +71,6 @@ Func main()
 	EndIf
 EndFunc   ;==>main
 Func runSquadMortar()
-	Local $bOnlyOneTarget = False
 	While True
 		Sleep(1000)
 		syncCoordinates()
@@ -80,41 +80,21 @@ Func runSquadMortar()
 			ContinueLoop
 		EndIf
 		For $i = 0 To UBound($aCoordinatesRange) - 1
-
 			;ConsoleWrite('Range from sync  ' & $aCoordinatesRange[$i] & @CRLF)
 			;ConsoleWrite('Angle from sync ' & $aCoordinatesAngle[$i] & @CRLF)
-
-			If Not $bOnlyOneTarget Then
-
-				If syncExitLoop() Then
-					$bOnlyOneTarget = False
-					ExitLoop
-				EndIf
-				$oData.fAngle = $aCoordinatesAngle[$i]
-				Local $iSubProcessId = _MP_Fork()
-				rangeMortar($i)
-				_MP_Wait($iSubProcessId)
-			EndIf
-
-			If syncExitLoop() Then
-				$bOnlyOneTarget = False
-				ExitLoop
-			EndIf
-
-			cSend(20, 1730, "i")
-			cSend(20, 1730, "i")
-			cSend(20, 10, "i")
-			cSend(0, 3100, "r")
-			cSend(0, 0, "o")
-
-			If UBound($aCoordinatesRange) == 1 Then
-				$bOnlyOneTarget = True
+			If syncExitLoop(False) Then ExitLoop
+			$oData.fAngle = $aCoordinatesAngle[$i]
+			_MP_Fork()
+			Local $bSuccess = rangeMortar($i)
+			_MP_WaitAll()
+			If syncExitLoop() Then ExitLoop
+			If $bSuccess Then
+				cSend(20, 1770, "i")
+				cSend(20, 1770, "i")
+				cSend(20, 10, "i")
+				cSend(0, 3100, "r")
+				cSend(0, 0, "o")
 			Else
-				$bOnlyOneTarget = False
-			EndIf
-
-			If syncExitLoop(False) Then
-				$bOnlyOneTarget = False
 				ExitLoop
 			EndIf
 		Next
@@ -123,8 +103,8 @@ EndFunc   ;==>runSquadMortar
 
 Func angleMortar()
 	$fAngle = $oData.fAngle
-	setCoordinates()
-	While (True)
+	Local $hTime = TimerInit()
+	Do
 		$fAngleOcr = Number(getOCRAngle(), 3)
 		If Not @error And $fAngleOcr > 0 And $fAngleOcr < 360 Then
 			If $fAngleOcr == $fAngle Then
@@ -177,17 +157,18 @@ Func angleMortar()
 			ExitLoop
 		EndIf
 		cSend(0, 0, "d")
-	WEnd
+	Until 5000 < TimerDiff($hTime)
 EndFunc   ;==>angleMortar
 
 Func rangeMortar($i)
-	While (True)
+	Local $hTime = TimerInit()
+	Do
 		PixelSearch($aCoordinates[$iResolution][$iMortarRangeLine][0], $aCoordinates[$iResolution][$iMortarRangeLine][1], $aCoordinates[$iResolution][$iMortarRangeLine][2], $aCoordinates[$iResolution][$iMortarRangeLine][3], "0x000000", 0, 1, $hWnd)
 		If Not @error Then
 			$iRangeOcr = Number(getOCRRange())
 			If Not @error And $iRangeOcr > 809 And $iRangeOcr < 1581 Then
 				If $iRangeOcr == $aCoordinatesRange[$i] Then
-					ExitLoop
+					Return True
 				EndIf
 				Local $fTimes
 				If $iRangeOcr < $aCoordinatesRange[$i] Then
@@ -199,11 +180,12 @@ Func rangeMortar($i)
 					$sKey = "s"
 				EndIf
 				cSend($fTimes * 62.5, 0, $sKey)
-				ExitLoop
+				Return True
 			EndIf
 		EndIf
 		cSend(0, 0, "w")
-	WEnd
+	Until 5000 < TimerDiff($hTime)
+	Return False
 EndFunc   ;==>rangeMortar
 
 Func syncExitLoop($bWithPixelSearch = True)
@@ -226,6 +208,9 @@ Func getOCRRange()
 	Local $hHBitmap = _ScreenCapture_CaptureWnd("", "Squad", $aCoordinates[$iResolution][$iMortarRangeOcr][0], $aCoordinates[$iResolution][$iMortarRangeOcr][1], $aCoordinates[$iResolution][$iMortarRangeOcr][2], $aCoordinates[$iResolution][$iMortarRangeOcr][3], False)
 	Local $hBitmap = _GDIPlus_BitmapCreateFromHBITMAP($hHBitmap)
 	Local $aDim = _GDIPlus_ImageGetDimension($hBitmap)
+	If @error Then
+		Return 0
+	EndIf
 	$hBitmap = _GDIPlus_ImageResize($hBitmap, $aDim[0] * 2, $aDim[1] * 2)
 	Local $hEffect = _GDIPlus_EffectCreateColorBalance(65, 65, 65)
 	_GDIPlus_BitmapApplyEffect($hBitmap, $hEffect)
@@ -258,6 +243,9 @@ Func getOCRAngle()
 	Local $hHBitmap = _ScreenCapture_CaptureWnd("", "Squad", $aCoordinates[$iResolution][$iMortarAngleOcr][0], $aCoordinates[$iResolution][$iMortarAngleOcr][1], $aCoordinates[$iResolution][$iMortarAngleOcr][2], $aCoordinates[$iResolution][$iMortarAngleOcr][3], False)
 	Local $hBitmap = _GDIPlus_BitmapCreateFromHBITMAP($hHBitmap)
 	Local $aDim = _GDIPlus_ImageGetDimension($hBitmap)
+	If @error Then
+		Return 0
+	EndIf
 	$hBitmap = _GDIPlus_ImageResize($hBitmap, $aDim[0] * 2, $aDim[1] * 2)
 	$hEffect = _GDIPlus_EffectCreateBrightnessContrast(0, 60)
 	_GDIPlus_BitmapApplyEffect($hBitmap, $hEffect)

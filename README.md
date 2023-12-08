@@ -58,6 +58,9 @@ Feel free to explore the code and contribute to the project!
   ```cmd 
   pkg squadMortarServer.js -t=win
   ```
+    ```cmd 
+  pkg squadMortarServerWebsite.js -t=win
+  ```
   ```cmd 
   pkg imageLayering.js -t=win
   ```
@@ -65,6 +68,10 @@ Feel free to explore the code and contribute to the project!
   
   ```cmd 
   create-nodew-exe squadMortarServer.exe squadMortarServerSilent.exe
+  ```
+
+   ```cmd 
+  create-nodew-exe squadMortarServerWebsite.exe squadMortarServerWebsiteSilent.exe
   ```
 
    ```cmd 

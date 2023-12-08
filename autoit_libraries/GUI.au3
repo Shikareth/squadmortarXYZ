@@ -4,10 +4,11 @@
 #include <GDIPlus.au3>
 
 Global $bActiveSquadOnMapSync = False
+Global $hFocusSquad = False
 Func createGUI()
 	Local $hGUIWidth = 560
 	Local $hGUIHeight = 300
-	$hGUI = GUICreate("Auto SquadMortar 1.5", $hGUIWidth, $hGUIHeight, -1, -1, $WS_SYSMENU + $WS_MINIMIZEBOX)
+	$hGUI = GUICreate("Auto SquadMortar 1.6", $hGUIWidth, $hGUIHeight, -1, -1, $WS_SYSMENU + $WS_MINIMIZEBOX)
 	GUISetOnEvent($GUI_EVENT_CLOSE, "exitScript")
 	GUISetBkColor(0x202225)
 	$iLog = GUICtrlCreateEdit("", 10, 10, $hGUIWidth - 25, $hGUIHeight - 115, BitOR($ES_AUTOVSCROLL, $ES_AUTOHSCROLL, $ES_WANTRETURN, $WS_VSCROLL, $ES_READONLY))
@@ -19,16 +20,16 @@ Func createGUI()
 	Local $buttonWidth = ($hGUIWidth - 45) / 3
 	Local $buttonHeight = 30
 
-	$hButton = GUICtrlCreateButton("Open SquadMortar Site", 10, $hGUIHeight - 100, $hGUIWidth - 25, $buttonHeight)
+	GUICtrlCreateButton("Open SquadMortar Site", 10, $hGUIHeight - 100, $hGUIWidth - 25, $buttonHeight)
 	GUICtrlSetOnEvent(-1, "eventButtonOpenHTMLFileClick")
 
-	$hButton = GUICtrlCreateButton("WinActive on MapSync", 10, $hGUIHeight - 65, $buttonWidth, $buttonHeight)
+	$hFocusSquad = GUICtrlCreateButton("MapSync Focus Squad: OFF", 10, $hGUIHeight - 65, $buttonWidth, $buttonHeight)
 	GUICtrlSetOnEvent(-1, "eventButtonActiveSquadClick")
 
-	$hButton = GUICtrlCreateButton("Discord", 20 + $buttonWidth, $hGUIHeight - 65, $buttonWidth, $buttonHeight)
+	GUICtrlCreateButton("Discord", 20 + $buttonWidth, $hGUIHeight - 65, $buttonWidth, $buttonHeight)
 	GUICtrlSetOnEvent(-1, "eventButtonDiscordClick")
 
-	$hButton = GUICtrlCreateButton("Github", 30 + 2 * $buttonWidth, $hGUIHeight - 65, $buttonWidth, $buttonHeight)
+	GUICtrlCreateButton("Github", 30 + 2 * $buttonWidth, $hGUIHeight - 65, $buttonWidth, $buttonHeight)
 	GUICtrlSetOnEvent(-1, "eventButtonGithubClick")
 
 	GUISetState(@SW_SHOW)
@@ -36,7 +37,9 @@ EndFunc   ;==>createGUI
 
 Func eventButtonActiveSquadClick()
 	$bActiveSquadOnMapSync = Not $bActiveSquadOnMapSync
-	MsgBox(64, "Active Squad on Map Sync", "Now, the activation of the window in Squad during Map Sync is " & ($bActiveSquadOnMapSync ? "enabled" : "disabled.") & @CRLF & @CRLF & "If you exclusively use Map Sync, you can utilize it with a single monitor of any supported size, provided that this option is activated.")
+	Local $sText = "MapSync Focus Squad: " & ($bActiveSquadOnMapSync ? "ON" : "OFF")
+	GUICtrlSetData($hFocusSquad, $sText)
+	MsgBox(64, "Active Squad on Map Sync", "Now, the activation of the window Squad during Map Sync is " & ($bActiveSquadOnMapSync ? "enabled" : "disabled.") & @CRLF & @CRLF & "If you exclusively use Map Sync, you can utilize it with a single monitor of any supported size, provided that this option is activated.")
 EndFunc   ;==>eventButtonActiveSquadClick
 
 Func exitScript()
@@ -49,6 +52,9 @@ Func exitScript()
 	ControlSend("Squad", "", "", "{o Up}")
 	If ProcessExists("squadMortarServerSilent.exe") Then
 		ProcessClose("squadMortarServerSilent.exe")
+	EndIf
+	If ProcessExists("squadMortarServerWebsiteSilent.exe") Then
+		ProcessClose("squadMortarServerWebsiteSilent.exe")
 	EndIf
 	_GDIPlus_Shutdown()
 	Exit
@@ -110,5 +116,5 @@ Func eventButtonDiscordClick()
 EndFunc   ;==>eventButtonDiscordClick
 
 Func eventButtonOpenHTMLFileClick()
-	ShellExecute("frontend\public\index.html", "", @ScriptDir, "open")
+	ShellExecute("http://localhost:3000/", "", @ScriptDir, "open")
 EndFunc   ;==>eventButtonOpenHTMLFileClick
