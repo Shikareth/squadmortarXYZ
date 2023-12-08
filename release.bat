@@ -16,7 +16,9 @@ xcopy /s /e /i js_scripts release\js_scripts
 for %%f in (release\js_scripts\*) do (
     if /I "%%~nxf" neq "squadMortarServerSilent.exe" (
         if /I "%%~nxf" neq "imageLayeringSilent.exe" (
-            del "%%f"
+            if /I "%%~nxf" neq "squadMortarServerWebsiteSilent.exe" (
+                del "%%f"
+            )
         )
     )
 )
